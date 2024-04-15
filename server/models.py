@@ -1,43 +1,36 @@
-#!/usr/bin/env python3
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import MetaData
+from sqlalchemy_serializer import SerializerMixin
 
-from random import randint
+metadata = MetaData(naming_convention={
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+})
 
-from faker import Faker
+db = SQLAlchemy(metadata=metadata)
 
-from app import app
-from models import db, Article, User
+class Article(db.Model, SerializerMixin):
+    __tablename__ = 'articles'
 
-fake = Faker()
+    id = db.Column(db.Integer, primary_key=True)
+    author = db.Column(db.String)
+    title = db.Column(db.String)
+    content = db.Column(db.String)
+    preview = db.Column(db.String)
+    minutes_to_read = db.Column(db.Integer)
+    date = db.Column(db.DateTime, server_default=db.func.now())
 
-with app.app_context():
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
-    print("Deleting all records...")
-    Article.query.delete()
-    User.query.delete()
+    def __repr__(self):
+        return f'Article {self.id} by {self.author}'
 
-    fake = Faker()
+class User(db.Model, SerializerMixin):
+    __tablename__ = 'users'
 
-    print("Creating users...")
-    users = [User(name=fake.name()) for i in range(25)]
-    db.session.add_all(users)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
 
-    print("Creating articles...")
-    articles = []
-    for i in range(100):
-        content = fake.paragraph(nb_sentences=8)
-        preview = content[:25] + '...'
-        
-        article = Article(
-            author=fake.name(),
-            title=fake.sentence(),
-            content=content,
-            preview=preview,
-            minutes_to_read=randint(1,20),
-        )
+    articles = db.relationship('Article', backref='user')
 
-        articles.append(article)
-
-    db.session.add_all(articles)
-    
-    db.session.commit()
-    print("Complete.")
+    def __repr__(self):
+        return f'User {self.name}, ID {self.id}'
